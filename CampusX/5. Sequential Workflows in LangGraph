@@ -1,0 +1,669 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "74748839-48ed-4df5-b79e-d83e35e4636f",
+   "metadata": {},
+   "source": [
+    "# Sequential Workflow ( Non-LLM Based )"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "d4d65f43-d927-4c71-b7c2-29bc9082e4f7",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:52.314399Z",
+     "iopub.status.busy": "2026-01-16T10:38:52.314241Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.346644Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.346067Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:52.314383Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "from langgraph.graph import StateGraph\n",
+    "from typing import TypedDict\n",
+    "from langgraph.graph import START, END"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "5a68e0e7-5ef0-4c80-9811-37a6edf33c1e",
+   "metadata": {},
+   "source": [
+    "### Define State"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "3fd24c4f-0b8e-4f04-990b-694e77becce6",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.349489Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.349334Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.352551Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.351991Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.349470Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Define State\n",
+    "\n",
+    "class BMIState(TypedDict):\n",
+    "    weight_kg : float\n",
+    "    height_m: float\n",
+    "    bmi: float\n",
+    "    category: str"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a8ad7353-40e6-4d6e-92bf-0aa0fcb063b2",
+   "metadata": {},
+   "source": [
+    "### Define Graph"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "91691dd6-939e-4ad4-9639-1d7c00cf6894",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.355777Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.355633Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.358995Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.358459Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.355763Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Defining the function for Node \"calculate_bmi\"\n",
+    "def calculate_bmi_function(state: BMIState) -> BMIState:\n",
+    "    \n",
+    "    weight = state[\"weight_kg\"]\n",
+    "    height = state[\"height_m\"]\n",
+    "\n",
+    "    bmi = weight/(height**2)\n",
+    "\n",
+    "    state['bmi'] = round(bmi,2)\n",
+    "\n",
+    "    return state"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "85533dd4-425a-4da9-8185-4b5dee0b96a5",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.359972Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.359618Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.363781Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.363352Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.359951Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Define the function bmi_label_function\n",
+    "\n",
+    "def bmi_label_function(state: BMIState) -> BMIState:\n",
+    "\n",
+    "    bmi = state[\"bmi\"]\n",
+    "\n",
+    "    if bmi < 18.5:\n",
+    "        state[\"category\"] = \"UnderWeight\"\n",
+    "    elif 18.5 <= bmi < 25 :\n",
+    "        state[\"category\"] = \"Normal\"\n",
+    "    elif 25 <= bmi < 30:\n",
+    "        state[\"category\"] = \"OverWeight\"\n",
+    "    else:\n",
+    "        state[\"category\"] = \"Obese\"\n",
+    "\n",
+    "    return state"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "2746e5d0-3c6d-490a-ae73-048281c38f2b",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.364548Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.364382Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.372904Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.372324Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.364533Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Define Graph\n",
+    "\n",
+    "graph = StateGraph(BMIState)\n",
+    "\n",
+    "# Add Nodes to graph\n",
+    "graph.add_node('calculate_bmi_node', calculate_bmi_function) # calculate_bmi_node is Node and calculate_bmi_function is a function that will be executed - Function is defined above\n",
+    "graph.add_node(\"bmi_label_node\", bmi_label_function) \n",
+    "\n",
+    "# Add Edges to graph\n",
+    "graph.add_edge(START, 'calculate_bmi_node')\n",
+    "graph.add_edge(\"calculate_bmi_node\", \"bmi_label_node\")\n",
+    "graph.add_edge('bmi_label_node', END)\n",
+    "\n",
+    "# Compile the Graph\n",
+    "workflow = graph.compile()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "811a0364-d1e8-4695-b757-c8a4a850d00f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.373557Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.373414Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.379370Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.378904Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.373542Z"
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'weight_kg': 95, 'height_m': 1.81, 'bmi': 29.0, 'category': 'OverWeight'}\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Execute the Graph\n",
+    "initial_state = {\"weight_kg\":95, \"height_m\":1.81}\n",
+    "\n",
+    "final_state = workflow.invoke(initial_state)\n",
+    "\n",
+    "print(final_state)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "2f781cb3-f1d5-4941-a58a-22ab42366ee2",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T09:46:18.572936Z",
+     "iopub.status.busy": "2026-01-16T09:46:18.572331Z",
+     "iopub.status.idle": "2026-01-16T09:46:18.575510Z",
+     "shell.execute_reply": "2026-01-16T09:46:18.574907Z",
+     "shell.execute_reply.started": "2026-01-16T09:46:18.572913Z"
+    }
+   },
+   "source": [
+    "### Visualizing the graph"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "5ebcd6d7-0b76-4857-9573-fa8d1f0af46f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.382303Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.382160Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.603990Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.603492Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.382289Z"
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "    +-----------+      \n",
+      "    | __start__ |      \n",
+      "    +-----------+      \n",
+      "           *           \n",
+      "           *           \n",
+      "           *           \n",
+      "+--------------------+ \n",
+      "| calculate_bmi_node | \n",
+      "+--------------------+ \n",
+      "           *           \n",
+      "           *           \n",
+      "           *           \n",
+      "  +----------------+   \n",
+      "  | bmi_label_node |   \n",
+      "  +----------------+   \n",
+      "           *           \n",
+      "           *           \n",
+      "           *           \n",
+      "      +---------+      \n",
+      "      | __end__ |      \n",
+      "      +---------+      \n"
+     ]
+    }
+   ],
+   "source": [
+    "from IPython.display import Image\n",
+    "print(workflow.get_graph().draw_ascii())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "2655c8a0-78d7-4057-a210-21b2a2d83d69",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.604735Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.604513Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.694318Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.693794Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.604716Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAAALwAAAFNCAIAAAA1kpL0AAAQAElEQVR4nOydB2AURdvHZ/fu0nsvQAokVCVA6CV0kA7yKl0pIgjSkSZ+0gSk6EsTeRUFBEFRmkoRFZCOQugtkARIQiC959p+z92S45LMrjlyh3vc8zMeu1N2Z2f/O73IOY4jCGIKcoIgJoKiQUwGRYOYDIoGMRkUDWIyKBrEZKxYNPFXcuMu5GY8VquVnBbQMADfgsCyjFarO1DYsSqlFg4YluH0JgxDwAnLshyc61sbWJZotfwBA7/g0XAd3qPOA6PzbmwOvuCI0xpfgdEZgnNNiV+wkrMatdYQZgiP3I44uciqRDpGxXgR64Sxunaa2GMZF49k5+VoOA2BFyC3Y+0dWN1DaBleEET39p68TpmC0ag4YxPdm+T0GgKn/KOz4FdvI9P96F653g2PziOnl4uWGJuDL6ZENE+vwOp+uaci4UA0WvXTGJYpdKJUFmuVRZxGzTk4s1UjnboMDSBWhTWJBuRy9kAmiMA72L5BW7eIKHdizWRlFp3ck5F8q1Cp5EJqOnR/qwqxEqxGNJsXxudlaSKjnTsOCCQvFrfOZ/+5O12t0r4+tZqHjx2RPNYhmjVT4rwCFYOmh5AXl2O7Hl0+nlM/xq1VLz8ibaxANGunxjXv5tmwgzexAT57L6732OCgMEciYaQuGlBMjzF+IRFuxGZYPyOudlPXmH7+RKqwRMLAZ9e8h5dNKQYYs7TGtZO5dy7mEqkiXdFsWZTg6ado2M5aGzMqQ0x/74PfpBKpIlHRXDqRmZOpHjDtRS75ilCnmaeLh/zbjxOJJJGoaE7tS69R34nYMMPmhKanqDQaDZEeUhTN9TNZqmLSZWgQsW1cPWXfrUgi0kOKojl7KNMrQEFsnkadPLMeK4n0kKJo8rM19ds+7y6CTp06JSWZ/FnfuXOnR48exDLUa+4B3VhXTmYRiSE50dy/nQedgnWbepDnSEpKSmZmJjGda9euEUvi5Ca7dUFydW/JDY2Ii82X2THEMkBL5rfffvvTTz8lJiaGhYU1a9Zs7NixFy5cGDNmDNj27t07JiZmxYoVkH7s3Lnz3LlzycnJ4eHhffr06d+/P3+FDh06jBo16vfffwdfQ4cO3bJlCxhGR0dPnjx58ODBxNy4eily0lVEYkhONFmPlHYW67Pbvn37xo0bJ02a1LJlyyNHjqxdu9bZ2Xn48OGffvopGO7Zsyc4OBicgW5ALnPmzGEYJiEhYenSpYGBgeAFrBQKxa5du5o0aQLSadSoETg4dOgQqJBYBg9fecbDYiIxJCcaZSGncJARy3D+/Pk6derwpZC+ffs2bty4oKCgvLPFixfn5+cHBemqb5CK7N279+TJk7xoQCXu7u7Tpk0jzwVnD4UEK92SE41+kJylsqf69euvXr16/vz5DRo0aNOmTZUq9CEskItBmnTixAnIxXgTPgXiAdmR5wV0DTJaIjUkJxqFPSnMs1Q8DRo0CPKjo0ePzps3Ty6XQ41pwoQJvr6+xm60Wu3EiROVSuX48eMhmXF1dR05cqSxAzu75zfkJTdbzbGS61GWnGjcvBSPH1iqcYJl2b567t69e/bs2Q0bNuTl5X3yySfGbm7cuHH16tV169ZBwYU3yc3N9fP7d8a45KSr5RarFjwzkqtyh73kzI/qtQRQYoWaERxAnWjAgAEDBw68efNmGTdZWbp2EYNK7uoh/xI5acWuHpJr55ScaGq87MpxJP6qRRonDhw4MH369GPHjmVnZx8/fhxqzlDKAfPQ0FD4/fXXX69cuQJ6gpwL6tI5OTlQdVq2bBnUzKEhh3rBatWqpaWlQUXMUPoxL3lZXHg9yQ3IkmKLsJMb89fhDGIB3n//fdDElClToLllwYIF0CoD9WowhxJxz549169fD8XkgICAhQsXXr58uX379tD6Mm7cOGikATEZmmqMadWqVVRUFFSmDh48SMzNvZv58Nu4sy+RGFIcuXf6l7QLf2SNXVaD2DZbFyeqlNo3/y+MSAwppjTNuvnA76mf04htk/lI1WmwFAeZS3SGZZ1mrrFHs5t396HaQjGCmlkALi4uUCGiWkHGBM3BxDJ8rYdqZTwvswyjR4+GVgCq1fYViY6uTHANZyI9pDuwfMOsOwFhDr1GB5e3gqYUaLGl+oL2FaF2FHh5ICliGYqLi+HWVKvCwkJHR3phFoJqb29f3jw7Xbll0b3xKyWaQUt6NsLaqXEDpgV7B0p6Pocl0E9IcIvpJ9EJUJKejdDzrYAdkhy6ZlG+/OCOXxV7ySqGSH/eU+Yj5bal90YuDHNwtFQvpqT4fGZcVIxn01ckPTPQCmZYJt0p2LUmuWa0S6fBVra6gkkkx+ftWf/QN9iu/4RqRNpYzQIAn8+8I5MzHQb6hNV9AefOQV0pI1nVoL178+6Sa8orjzUtNfLTl8n3bxTYOTDV67u07S/dWasV58qpzNgjOdlpKndf+ZCZocRKsL5FjX7emPTgZpFazckVjIMz6+IhV9gzdvYyLW0UjqGN5Ml6RyWrEhlWvzKGZYiWe+KS4Qh/vSenJcsllVz36epG/KpbjN6xsRvjqz2F06qKtQV5moJsTXGRliGMh5+ix2h/V3d7Yj1Yn2h4sjOK/j6UlZJQXFygLS7S6F4iXTQla2OVbmEzrKZW2rHejV4Q+qXRtAwLkmCerIQlEFFGoqHcooxHVg5a1y3d5elnFxHtEhlllVmttYrmOdC7d++1a9cKje6zZXB1T0HUarVcjvFDASNFEBSNEBgpgqBohMBIEQRFIwRGiiAoGiEwUgRB0QiBkSKIRqNB0VDBSKGjUqlQMUJgvNDBvEkEjBc6KBoRMF7ooGhEwHihg6IRAeOFDhSEFQpcLJIOioYOpjQiYLzQQdGIgPFCB0UjAsYLHSzTiICioYMpjQgYL3RQNCJgvNBB0YiA8UIHRSMCxgsdFI0IGC90UDQiYLzQYVnWw+O57gRjRaBoBMnIsMgKoy8AKBo6kDdBDkUQGigaOigaEVA0dFA0IqBo6KBoREDR0EHRiICioYOiEQFFQwdFIwKKhg6KRgQUDR0UjQgoGjooGhFQNHRQNCKgaOigaERA0dBB0YiAoqGDohEBRUMHRSMCioYOikYEXLG8LFFRUSxbau80hmFGjRo1duxYguiR9M5y/wphYWFsaapWrTpw4ECClICiKUv37t2NUxpIZjp37ozjhY1B0ZRl6NChISEhhtOgoKC+ffsSxAgUTVns7e379etn2Pm4RYsWgYGBBDECRUMBSjDBwbr9wEEuWJopzz/Xnu7dyr99Pre4qJzPp/tv6Q5YVncp3oTfVM3YDX9M9HuvGWyN92cz3sCt7G5spW/KX6TU3m6GC+q35iIcx3FlA/nUu/4GZcJZKgxE5yA5OeX69esB/n516tYzDgDLMFrdnmFGlzUKCX8RhiVaDSkXdJ0z/VZiRCTKy+9QxyNjdUEtb86U7IxW1kr4dqz+CanvXaEg3oHyhu19iCj/IJovP4grLiAKe1ZVzBlCyXFlDnQXkcn0T6Xf48+w2V/Zd8Zvtlayq1spSbE6v8yTbdyERcPqw6zlSgnOaJs4GbxUuIaWYlXiXb9xHG1TwpItC/X/6txwrIzhSu9ayOuM302ulK+nV9Hbasq/Xv1bFNBEiRt4dtZY9E/vqwsJzZxl9Nvgld0o78kHwD59WKNIgFiGp6AEws6BUSm14Lf9AJ/IBoJlf7HGvc9nxfkEyTsPCyWILXHzr8zD29Ls7GWhdVypDgRTmv/NiasS4dCqL27GZ6NsWRD3n2kBvgEu5a3oBeFTPz2CXBkVY8t4+MsPfvWIakUXzb3bRQ6u2C1l0wTVcMnL0VKt6MpQFWgJ3T1iKzi7yrVKuhVdNBot1GUYgtgyUAsldA1gHoQIUn6/ex4UDSKIrqWUBl00DGZNNo8ukeEwpUFMgiNCDdd00XDCHhAbgZVxjECOQ2+nkckY7P+2caD6LFQQpktDA/1t2E5j85hWEEYQglVuxFSeDBKhQc+eWBnWum0d/Xg1U1Ia6OLG6VCIUMLBCrjWjaEjFqZPv46bt3xBnokP582YNv0dYnl69+3wzIHk+b8P35s67XlMtMvKymzXIfqPI78SMyGUcAiUaZgn/1s78+bPbNy4ebdXepN/jzZtOqhUSmJ1cIJlGoHGPd1w1BdBNDdvXgPRkH+VDu27EGuEMbFMoxsabWLupNFovt+5ddPmDXBcp/ZLb77x9ksvRcFxfPydvft2nr9w7uHD5NCQ8G7d+vTu1b+893v3ElZ8sujSpQtBgcGtW7cfMXysnZ3d9h2b4YL7fz7Ou0lNfThgUI+F81e0bBlj7FfoFpBWw++y5Qs+W//Jvj1H4PjAwX179/0QHx8XFlajfbvOr/YbyFSswL9r93cHDuxNSr7fsEGTKZNne3h4En32Co/54MG9H378FkyaN2s9fty0j5bMPXHiaNWqIUMGjejcuTvRZ095ebkrln8mcn14hBGjXl+3dtO2bV8dP3HE19evXdvOo996VyaTgW1BQcHKTz+Kjf0rNzcHHvCVV3r36f0f3uNvvx/86qvPcnJzWrRo8/p/hhpf8+rVSxB7N25cddeH7Y1ho52dnUnFYUws0+gUZqJoNvxv9Z4938+ft/z92Yt8ff1nzHoXdADma9etOHfu1MQJM5YsXgWv87+rlp4+c6KM34cPU8a/O/ylelEQs6+/Puy33w+sWv0xqTBCtzjwi+53+rS5vGIO/3Zg6cfzIiNqbftm76iR43b+sG3NuhUVuf7+/XsyM9PHjJk0Z9ZCeHNr1i7nzRUKxfYdm6pVCz24/yRccP+BvZOnjO7QvuuvB0+3a9tp2YoFuXm5pGLwO/OuWLmwQ4euhw6cght99/03htLJzNkTkpMfLJi/4rvtv0BmBw94/cZVML97N27RR+937tzjmy27u3TusXrNMsMFHyTdn/beO0XFRWtWf7Vg3vK7d29D2ExaB4Mzve+J40wp02TnZMNDTpo4s3F0Mzht2rRlQUF+ekYaROjcuYvhODAgCMwbREXD93r23MlmTVsae4f3Z+/gMPzNMfBhNWzQGNIYyFYqfHNSkVsAv/yy++WXG0Ag4djT02v4G2M+Xj4f0gM4Fr++o5MThI1Pk3r06AehVSqVEEg4jahRq1fPV+GgbUyn5SsW1q37MsgFTiGdgOLzvcR4MCEVJqZNx7YxHeGgfv2GkOLeunW9Y4eu8AFcvhy78YsdYWHVwWrwoOFnzp6AJGTJR//ds/d7f7+AYUNH8Q+ekZF+IfYv/lKHD+9XyBUgF3d33UyUaVPnDhzcE9Iw/voVQfe0JhWE9XUnE5KahPg78FurVl3+VC6Xz59XonqO+/HH7fCc9+8n8gaBgcFlvMN3EBFRi0+Kga5desIfqTgVuIVWq71y9eKwoW8ZTBo0aAyGly5fiGnTQfzy0Y2aGXKxOnVeUm1XpaU/DtLfAr4K3pxP+UNDq/Onjo5O8Au5CTGFyMjahmMXF9c8fUIFr4Pm/AAAEABJREFUmamDgwOvmCfOImpDYgwHSUn3Q43MDfFPdHnTRTjlFQMEBAQGBVWBh624aIhwlVswpTGp9sQ/noO9QxlzeCszZ0+EusNbo8ZHRUW7uri+O3Fkee/5+Xl8KeEZqOAtIG1QqVRfblwHf8bmmZn/vBOYk9PTogCvhuzsLF40ZYpEZRa2MRWq9/T0NAcHx9LhcSosLICDnJzsKlWqPQ2bkTN4IzduXuNLdQYyM9KJKZhW5eZn5lUcZ2fd7BjII8qY37p9Awpiy5eta9SwCW8CD+Pr41fee345v+XRUCa7VvQW8LFCXHfu1L1N6XQlKPCfp+kUFRUajkHf8Gv4gp8DkIYZB0AXhoJ8H29fOHBzcy8ymi9tHP9e3j5QEYFc1diju5tpwTaxcc/ERpoaNWpClnTx0nn+FBIq+PoPHvwJvkg4NbzChIS78Ffee82adSA5NRTToEYADXdQHVMo7IqLiw3mUEQo77eCtwCqV4+Ekink/fxfvbr1vb18/Pz8yT8RF3fTcAyFLSjNlBel5agZWaeoqOi2URiuX7/C50r+/oFwrC2ZWnzq9J8GN9XDIx49elj/5YaG5/X08DJkphVBJNGgiwaCYVI3gouLS6eO3aD2BDUIKItBMf7vv8/Url0P6ocgph3fbYE6IVSmwBxKyg9TU8p4796tD2QfKz/56K+/z/x5/I//fbHa28cXijhQgAD9QT2Z6Ovb27Z/Xf7WIrewt7eHuutff52GIIHy3ho5/sSJI7/s3wOxDEXL+QtmTZk2Bu77j08Xn3AHivkgYkjVDh76qU3r9nxl5/nQpEkLKI6sXLkIshso6kL2CkLha9dt23aCVmB4ZIgleMbdu78z+OrffzA8JlQPQXBQ1Pt8wyqo0t+Nj6v4fRnh7Emgw5I1ucMSarxQpFixctGUqWN0r+TDZaBrf/+AObMXXrt+uXef9rPfnwz10l69+sMzvzG8VFMNZMxQW4ba7PT3xkEdsmmTltDgAea1a9UdO2bShg2rIG+ev3DWyOG6foMyLU7itxg8aAS038z9YGphUSEk1xvWb4WmoL6vdoLqKGQ0CxesNKxDI4RarfpP/8HQ5tGxc9MpU9+GdgE+bM8N+CSgaQpyonfGvTFoSK+/z59dMH853wYGn8eYtyeePXuyfcfGSz/+cOaMeaQkftxc3b78YgeUct4eO2TYm6/GXvwbmh6gucGEGwu309Dncm9emMBpmH6TQghiq9w4k332wONxK2uUtxIaT4MDIxATa0+mNu5ZNT17tRWymjHjw1Yt2xJzsO3br7/99muqVUho+JpVG4nUYASTDoG+J4ZoLD80QiJs2LBNyApqHMRM9Oz5art2nalWcpkUx0+KdFkLDMLS9T3ZSkrD9z9YGmh1hD9iPTCEMS17kslZWkMagugQWDVCrcVVI2wcjhWcwiI0WY5lUTO2DaM1cQqLRqN9MUbuIZZAoPYkY3A2AiKE0BQWznZqTwgVDqflIqbCCE/LFRgawTLYkYAIITCwXIsbziGC0LMnO0cZp8bWPZtGQ7QyO7oVPaVxdCZFRSgamybtQX7JSP+y0EXT7jWfwjzMn2ya1ARlUHVHqhVdNO7ejgFhdlsXmzA6EHmR2PfFXU7D9RgZTLUV2+/p9IHHsX9kB4Q5BUc4OjoJ5G8MfQiy0J5NjMlTN8mTrbtM8U519o9+yzngdD29Fb6E2DZVpf2VOi23UxrRG7DC+5BV8NaM+G5ktEtqtNrUxPwHtwsUcmbonDBBv+LVJNDN9dN5RQUajYogzw/Tpp2ZDZmCkcs4vzD73qOrijjDzdwF6dOnz+rVq6tWrUqQ0mCLsCBqtVoux/ihgJEiCIpGCIwUQVA0QmCkCKJSqZ7nTEorAkUjCKY0QmCkCIKiEQIjRRCNRoOioYKRQgeSGZlQf53Ng6Khg3mTCBgvdFA0ImC80EHRiIDxQgdFIwLGCx1s2RMBRUMHUxoRMF7ooGhEwHihg6IRAeOFDpZpREDR0MGURgSMFzooGhEwXuigaETAeKGDohEB44UOFoRFQNHQwZRGBIwXOizLBgQEEIQGioYOx3EpKSkEoYGioQN5k0l7y9oUKBo6KBoRUDR0UDQioGjooGhEQNHQQdGIgKKhg6IRAUVDB0UjAoqGDopGBBQNHRSNCCgaOigaEVA0dFA0IqBo6KBoREDR0EHRiICioYOiEQFFQwdFIwKKhg6KRgRcsbwsDRo0YJhSa8xDFPXq1WvevHkE0cMSpDQBAQFsaYKCgkaMGEGQElA0ZWndurVWqzU2iY6ODgkJIUgJKJqyjBo1CpIWw6mvr++QIUMIYgSKpix+fn5dunQxnNarVy8iIoIgRqBoKAwbNiwwMBAO3Nzc4JggpTF/lftObC5hBbXI6bdrK28ORlrRjbE4Rvcfdbc0luO0TIX21CqznZrwVlzyXu1G7j94KDIy0pkLv3MpvwJeBKF6YfRPpIsMAfcV2UOvfGQa78JXgsbZkw2o6kLMh9mq3BqNZtP8xII8rUxGxLahE4n1Z95OTTSCdbH4725ML/RcJm3NSLuI/sn+4RKM/vuV2zF1mzq36mOe6X/mSWk0Ss1ns+KrRTq2GxBMEOlx4cjji8eyfUOzakZ5kEpjnpRm3fS4nqOCPQIcCSJhti6Oq9XYue2rgaRymKEgvH1loquXHBUjfeq19Lx5Lp9UGjOIJuexKjgSFWMF1G/jrVaRpPg8UjnMIBro13NztyOINcCyTHqyllQOMxSEtWqiVmF7j3WgVXOyStclcWiEzcFVNqFB0dgY0GzDsJWtL6NobAtIZqD5nFQOFI3tUenyp1lE88+N2YhUYEjl+1TMIprynWSIRIFXpa30B47Zk23BsoSVSJW78gVy5PmgLwiTSmIe0VS+QI48H/RVblJJMHuyLbRayZRpGAazJ+sAKrpspVMa8/QZcZwJ2dPdu3HtOkRfunSBVILefTts3vKFuJsP582YNv0dYoHA/PDj9o6dm5LnwvCRr3363yXEXHCE05BKYq3Z0+uvDa1T+yWCmIhNl2kGDXyTIKYjodrTM1CsLF732SdHjx3mOK59uy5vjRovk8l27f5uyzdffLxkzZy5k9PT00JCwqZOnpOVlbl4yQdqjbpxdPMpk2d7eHgSffb0ar+Bw4aOquDt4uPv7N238/yFcw8fJoeGhHfr1qd3r/7igQHzjIz0dZ+tvHL1YlFRUePGzYcNGVW1qglTLfv06zj8zTHZ2VmbNm9wdHSE8I8fN83b24e3hez14KGf0tIe+fkFRNVvNHnSLFZf3EhIuLtk6f8l3ouPioqGOxpfsJLh0cGYoUhinjLNM1S4V63+ODKy9swZ8wYPGrHjuy2/7N8DhgqFIi8v9+vNny//eN2+PUdUKtVHSz7Yf2DvF//bvnXLnstXYsEleSbWrltx7typiRNmLFm8ChTz31VLT585IR4YjUYzeerbsRf/njxp9sYvdnh6eL0z7o2k5AcVvyk8zo4dm0EKu3f9tumrHyD8X2/6nLf66uv1u/d8N/btSTu/PzhyxDtHjv76/c6tRL852YxZ7/r6+n+9cefbb03YvmMzfDy8l8qHRwennytUOcxUECYm06hhk44dujaIioYvvnbten/8cYg3h1h7Y9ho+IDg02zapGVKShJ8gv7+AV5e3vA53rlzizwTc+cuXrZsXcMGjfk71oysffbcSfHAXL4ce+9ewuxZC5o2aQF3Hztmkpu7xw8/bCOmEBxcdcjgEa4urpDAQEpz69Z1MMzNy/12+6ahQ0a1atUWrNrGdOzb5/Vvtn4Jz37sz98fPUod985UeOTQ0PAJ774HXxF/KbOExyyYKXsyPamBGDQcQ5H2+Ik/DKeQffAHTk5Onp5eEEH8qaOjU+qjh+TZ4Lgff9x+5uyJ+/cTeYPAwGDxwEDCAEkF6Iw3ZxgGVHvx0nliCpCAGY5dXd3y83XjcyEMoA9Qp7GzvLy8pKT78Ofg4BAQ8GTCAEjNz8+fPzZLeIh0CsLPkD05Oz+d8wfigIz/6dWMJrcx5pjoptVqZ86eqFIpobACBQX4uN+dOPIfAwOfOLxaqJAbu+RLVBWHGv6MDF2O42DvYDCB7wF+CwsLcnKy+WMD9iXOzBIeqG9zEmnce4ZwFBUVGo7zC/Ld3c0wiUuIW7dv3LhxdfmydZAN8SbwAnx9/MQDA185ZJGLFn5ifCkZKyOVhtdoodFNCwp0M0u8vHzc3NxBOsaOeSuzhccc/T1mGk9jeoclvMhmzVrxxzdvXgsOqkosBp9yGFQC1RP4CwutLh6Y6tUjCwsLoWoTHFSFt0pOSfJwN+3LpgJXhtrZ1asXa9eqy5tcv34F0j9fX78A/0CoGUGTY3h4DTCPi7uVlvbY4Kvy4WHMIRuzFIS5Z+iw/P2Pg2fO6oqivx7eD1HWrl1nYjGgkCSXy6FalJObA2XJ1WuWNY5u9jA1RTwwkCw1adJi+fIFqakPQXa793w/ZuzQAwf2kkrj5urWqWO3b7ZuPHnyGATp0KGfd+3e0b//YKhntWgRY2dnt3zlQpAOyGX+wlmQ9vC+zBUeqWRPJqFS69YHGDVy3Ib/rZo5awJ8XgNeH/ZK117EYkBNZM7shdBY0rtPe6jOzJm1ID0jbe4H094Y3h8qIyKBWbzo0737foA3d+3aZajQdez4Sr9+A4g5gPoRSGTBotlqtTooqMqggcMHDngDzF1cXD5a9OmGDat69IqBEvHotyYc/m2/wZd5wlPppMYMc7nXTI6L7uxbt4U7QSTP5g/j2vb3q9vSjVQCHBphW3BmyJ3MVhAm/wqz5ky6cjmWagXNvtD8RSxMz15thaxmzPiwVcu2RGLoxpVLo0zDVb4P7NmYNuV9pUpJtXIq3dphITZsEGyQhWZ+IkEYCTXu/TuDsAydf/8WgQFBxLrgpDNGGKew2BJmEA2jayvH4Z5WAiuNGZa6AjmHKY11oMubOFwAADEF3cfN4QIAyHPHHGUaBhc+txqkMrCcM8cIQuT5YN0DyxHrBUWDmIwZRCNXEJbF/MlK0LXTqEjlMINoZDImN1tJEGsAai1+VSrbK2eGao+7nzzpdgFBJM+5w6kyOfGrVtnl5c0gmtcmh+Rna27+lUkQaXPjTG6jjpUafsVjtv2ePnsvzitA0bibr2/g8xiTgFQcpVJ5bn96XGz+a5OC/KqZ4e2Yc1/uzYsScjPUkGtqyixmQdunS3fjis1pou7yJbTBFssILNrzbDuQPdOWZhV/tFK+yLOPLxHZCE3GMNA04+DENurk2iDGl5gD82/mnv5QWXqHYsqL5J+wzJ0NzsrsOciWazvUzcPgWC1DqbJBHGloT8RfnLqbIVyKsNry5rNmzZw8caJ/QBBHqBdktLQbwS0YbdmwGQQBtUwta+TU6ApPHpMWRP01SZkZH2BmCBjLEj7OKb7VxLeambc7MX87jXfAC7IjS2rGbc8AhU+QgiClwcY9QdRqtVyO8UMBI0UQFPZEe1EAAAiMSURBVI0QGCmCoGiEwEgRBEUjBEaKICqVSqHAUjAFFI0gmNIIgZFCR6PRsCxrliWVXjxQNHQwmREB44UOFmhEQNHQwZRGBIwXOigaETBe6KBoRMB4oQOiwTKNECgaOpjSiIDxQgdFIwLGCx0UjQgYL3SgnQZFIwTGCx1MaUTAeKGDohEB44UOikYEjBc62PckAoqGDqY0ImC80GFZNijI2tYIfl6gaOhoNJqUlBSC0EDR0IG8CXIogtBA0dBB0YiAoqGDohEBRUMHRSMCioYOikYEFA0dFI0IKBo6KBoRUDR0UDQioGjooGhEQNHQQdGIgKKhg6IRAUVDB0UjAoqGDopGBBQNHRSNCCgaOgqFQqWq7G4lLyooGjqY0ohg/hXLrZ2uXbvCr1arTU9Pd3R0BOkolcqWLVuuXr2aIHowpSmLTCZLTU0luiXjmaKiIjjw9/cfM2YMQUrAbW7LEh0dXSb1rVWrVt26dQlSAoqmLEOHDq1atarh1NfXd8iQIQQxAkVTlho1ajRt2tRwGh4e3qhRI4IYgaKhAIlNcHAwHLi7uw8cOJAgpUHRUKhSpUrr1q3hICwsrFWrVgQpjXVXuY/tepxwNS8/GyrIur3ctNqyW2RRtmsrvwsbp99vy9iX0dZwhitQ9oujbS5H3VaOKbmp3I5xcGL9qtrHvOrt7G5PrBOrFE1OeuHudSk5GVp4ZwoHuaObnbOXg72LQibjWxCYkvfJGQtC9zL1x/p/9QdPHOn2YzPyqJcRa9i27amh7j/+UrwpbZdFvR3H6O/81JQlGo22uEBZmKMszFSqCpUaDefgyNZv69q4o3m2CHyeWJ9oti6Nz3yoUTjLqtT1c/ZwIFZLYuzD/IwiuYJ5fUoVdx9r2o7PmkSTklD44+okuT1bs3UIeVFIvJia+6igRpRT12FWM3XcakSTeDNv3+cP/SI8/EI9yQvHjSOJXv7y16ZUI9aAdYjmzuXc/V+l1usURl5crv0eH1LLufvIQCJ5rEA0dy7m7v86tV7nF1kxPDeOxrt5ywdNDyXSxgraafZvSg1p5EdsgFoxYRkp6pM/PSbSRuqi2fhBvJOnvau3M7ENQhv7nf89m0gbSYvmr8MZhfma8GgbWpHKxcPZ3lmx5aMEImEkLZrzv2W6+DkRGyOiRZXsx5IeNChd0dy9nKtSciEv+xNJkpefOW1u09jLh4kFUDiw339yn0gV6Yrm3KFMuYONDiz0CHR5nFRMpIp0RZP5SOXmY8W9BJXBP8JbqyGpDwqJJJHup6xWct7hXsQy5OSm79v/acL9S0plUc2IZh1jRvj56romUlLvrFgzaMLbG38/tunK9aPubn5RL3Xq1mmcTCYD2wuXDh347fPCwpw6tVrHtBxMLApDLh/L8h/kSKSHRFOauNhc+LWzkxELoNFo1m98507C+Vd7zpw6fpuLs9eqDSPS0h+AlVymW6X8+z2LG7zcZcn/HR/Uf97RE1svXtUVXFJS47bt/CC6QbeZk36Ijuq+5+cVxJJAF1vGQ4lOvJKoaNKTixmLBS3+XuyjtISB/efVimzu5urds+sEZyePP09tNzioX7d9/Xod5HJF9bCG3p7BD5JugOHJMz94uAd0ajvSycmtRnijptF9iCVhZWxBroZIEomKprhYa7nujYTEizKZIiI8mj9lGAbEcTfhgsFBlaDahmMHB9fCIl2yl5ZxP8A/3GBeNbgOsSQsy2o1DJEkEi3TsCxDGRVnJgqL8jQaFVSYjQ1dnJ92njO0VK6gIMfH++ksBTs7y5Y2GIbIpbqhh0RF4+4jZxhLJTWuLt7wykcMLlUogS9b3BfkSipVkeG0uDifWBKNWuPsYpEiXeWRqGhq1Hc+ujOdWIbgwEilstDDw9/Hqwpvkp6RZJzSUPH0CLx240+tVsvL69rN48SSaNWcm49U8wEiSRxd7GRykpaYRSxARPXGtSKaf797UWbWw7z8rBNndv53/Ztnz+8T91W/bkdoBd798wqO4+Lu/n3yzE5iSdRqbfhLEu1CkW47jaMbC+/UJ8SDWIARQ1aeOvfjN9+9n3j/sq9PSMP6XVs3f13cS82Ipj26vHvq7I/TP2gG1ajB/5m39ou3y092MAsZKTlQoKsVbZFnrzzSHYR1ct/j2D+z67R78cdelef26fv2cu2wueFEkki3G6FFT18oCqfFZxLbQ5mnbtrNm0gVSfcIVq3pmHQnxydMsIj6/qIOVHMtNHEwLMPQK+3QpOvibLaU/8stU+LvXaRaOTm6FRTmUK0WzvmNCJAYm2LnwNRs5E6kitTHCK9/L86zmod/dbpuMjKTiel4eZpzVFdOTppao6RaFRcX2ts7mhqGq4fju7zpV+MlNyJVpD72oN0A71+/SRcSjXlf/7Ph5uZDzMet4/d9g+2krBgi/THCNRt6VqvpcONYIrEB7l1KJZxG+rOfrGA2Qq+3q3j6yCHRJi80t889yE8rHP1RdSJ5rGaG5aEtqXev5NVqG0peRO6eTVYWFo9ZUoNYA9Y0l3vXZw+SbhV5h7oFRkq3OmoqykLl3bMp0Pz91kKJtsqUx8pWjYi7lHPw60cyBesV4uYXZt2TuosLlfcupBbnqcPqOXYfGUysB6tcn2b/puS7lwqgBd/OSe4e4OJX3ZrUk5mSk5WcX5Sj1Ki1nv7ywTNCibVhxSthnd6fdu10bkHOk+FtDKsbhaMtPdjt6bpDhqWJOJ3Lp11GDNEtXVV67I5ukaPSqxyRUosZGVtx0IjIaY09E063LBdjONUtrfTk3noTltg7yqrUcHjlTSuY60/lBVmx/NrZrNx0dXGRlmhLvX6jxapKXrLOhCmlmvLHT950GSkJ9E6WNdcrjilloeG09vass6dOK94BVj/9D5e5R0wGl7lHTAZFg5gMigYxGRQNYjIoGsRkUDSIyfw/AAAA//+il4LgAAAABklEQVQDADwaH0M/oRRlAAAAAElFTkSuQmCC",
+      "text/plain": [
+       "<IPython.core.display.Image object>"
+      ]
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "Image(workflow.get_graph().draw_mermaid_png())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e7e46276-9542-44be-95ba-d4454909ba57",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:05:10.502976Z",
+     "iopub.status.busy": "2026-01-16T10:05:10.502641Z",
+     "iopub.status.idle": "2026-01-16T10:05:10.505651Z",
+     "shell.execute_reply": "2026-01-16T10:05:10.505094Z",
+     "shell.execute_reply.started": "2026-01-16T10:05:10.502960Z"
+    }
+   },
+   "source": [
+    "# Sequential Workflow ( LLM Based )"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "b3f725e4-77f1-484e-a059-435adae05393",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.697606Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.697433Z",
+     "iopub.status.idle": "2026-01-16T10:38:53.699727Z",
+     "shell.execute_reply": "2026-01-16T10:38:53.699258Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.697591Z"
+    },
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# !pip install -U \"langchain[openai]\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "2a1fe966-118c-45d2-a95d-ff69ca13ee8c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:53.700599Z",
+     "iopub.status.busy": "2026-01-16T10:38:53.700384Z",
+     "iopub.status.idle": "2026-01-16T10:38:59.181600Z",
+     "shell.execute_reply": "2026-01-16T10:38:59.180851Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:53.700584Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "from langgraph.graph import StateGraph\n",
+    "from langchain.chat_models import init_chat_model"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "c7a443fb-1423-4557-bd38-b148c1f7641e",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:59.184652Z",
+     "iopub.status.busy": "2026-01-16T10:38:59.184168Z",
+     "iopub.status.idle": "2026-01-16T10:38:59.187839Z",
+     "shell.execute_reply": "2026-01-16T10:38:59.187191Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:59.184635Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "from langgraph.graph import START, END"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "2e4a8bcb-38c8-4d03-abca-dbf9e1eab51a",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:59.188711Z",
+     "iopub.status.busy": "2026-01-16T10:38:59.188472Z",
+     "iopub.status.idle": "2026-01-16T10:38:59.201393Z",
+     "shell.execute_reply": "2026-01-16T10:38:59.200769Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:59.188694Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "True"
+      ]
+     },
+     "execution_count": 12,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "from typing import TypedDict\n",
+    "from dotenv import load_dotenv\n",
+    "\n",
+    "load_dotenv()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "fc79a80d-2e7e-4970-bc3f-00335913f1eb",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:38:59.202761Z",
+     "iopub.status.busy": "2026-01-16T10:38:59.202336Z",
+     "iopub.status.idle": "2026-01-16T10:39:00.492463Z",
+     "shell.execute_reply": "2026-01-16T10:39:00.491836Z",
+     "shell.execute_reply.started": "2026-01-16T10:38:59.202741Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "model  = init_chat_model(\"gpt-5-nano\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "95503cfd-ef83-4266-ba31-24b1c699ed18",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:39:00.493506Z",
+     "iopub.status.busy": "2026-01-16T10:39:00.493307Z",
+     "iopub.status.idle": "2026-01-16T10:39:00.497775Z",
+     "shell.execute_reply": "2026-01-16T10:39:00.497242Z",
+     "shell.execute_reply.started": "2026-01-16T10:39:00.493487Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "ChatOpenAI(profile={'max_input_tokens': 272000, 'max_output_tokens': 128000, 'image_inputs': True, 'audio_inputs': False, 'video_inputs': False, 'image_outputs': False, 'audio_outputs': False, 'video_outputs': False, 'reasoning_output': True, 'tool_calling': True, 'structured_output': True, 'image_url_inputs': True, 'pdf_inputs': True, 'pdf_tool_message': True, 'image_tool_message': True, 'tool_choice': True}, client=<openai.resources.chat.completions.completions.Completions object at 0x7ff8c158c4d0>, async_client=<openai.resources.chat.completions.completions.AsyncCompletions object at 0x7ff8c1316a20>, root_client=<openai.OpenAI object at 0x7ff8c18fdfd0>, root_async_client=<openai.AsyncOpenAI object at 0x7ff8c10e2c30>, model_name='gpt-5-nano', model_kwargs={}, openai_api_key=SecretStr('**********'), stream_usage=True)"
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "model"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "98eb3e20-abbc-4430-84ef-91df07cdb99a",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:39:00.499087Z",
+     "iopub.status.busy": "2026-01-16T10:39:00.498399Z",
+     "iopub.status.idle": "2026-01-16T10:39:00.502370Z",
+     "shell.execute_reply": "2026-01-16T10:39:00.501760Z",
+     "shell.execute_reply.started": "2026-01-16T10:39:00.499068Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Define State\n",
+    "\n",
+    "class LLMState(TypedDict):\n",
+    "\n",
+    "    question : str\n",
+    "    answer : str"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "8070b7ec-f132-4d46-80e9-3aaf178276a0",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:41:17.063960Z",
+     "iopub.status.busy": "2026-01-16T10:41:17.063323Z",
+     "iopub.status.idle": "2026-01-16T10:41:17.067236Z",
+     "shell.execute_reply": "2026-01-16T10:41:17.066540Z",
+     "shell.execute_reply.started": "2026-01-16T10:41:17.063938Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Creating a Node Function\n",
+    "\n",
+    "def llm_qa_function(state: LLMState) -> LLMState:\n",
+    "\n",
+    "    # Extract the question from the state\n",
+    "    question = state['question']\n",
+    "\n",
+    "    # Form a prompt\n",
+    "    prompt = f\"Answer the following question {question}\"\n",
+    "\n",
+    "    # Ask the question from the LLM \n",
+    "    llm_output = model.invoke(prompt)\n",
+    "\n",
+    "    # Save the answer\n",
+    "    state['answer'] = llm_output.content\n",
+    "\n",
+    "    return state"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "id": "75ae98b6-0f40-4783-ae90-04920d38e87f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:41:17.217481Z",
+     "iopub.status.busy": "2026-01-16T10:41:17.217115Z",
+     "iopub.status.idle": "2026-01-16T10:41:17.221376Z",
+     "shell.execute_reply": "2026-01-16T10:41:17.220839Z",
+     "shell.execute_reply.started": "2026-01-16T10:41:17.217464Z"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Create Graph\n",
+    "graph = StateGraph(LLMState)\n",
+    "\n",
+    "# Create Node\n",
+    "graph.add_node(\"llm_qa_node\", llm_qa_function)\n",
+    "\n",
+    "# Add EDGE\n",
+    "graph.add_edge(START, \"llm_qa_node\")\n",
+    "graph.add_edge(\"llm_qa_node\", END)\n",
+    "\n",
+    "# Compile Graph\n",
+    "workflow = graph.compile()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "ea733495-1995-40a3-9b82-34b8d5c779e3",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:41:17.369207Z",
+     "iopub.status.busy": "2026-01-16T10:41:17.368886Z",
+     "iopub.status.idle": "2026-01-16T10:41:17.400382Z",
+     "shell.execute_reply": "2026-01-16T10:41:17.399888Z",
+     "shell.execute_reply.started": "2026-01-16T10:41:17.369191Z"
+    }
+   },
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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",
+      "text/plain": [
+       "<langgraph.graph.state.CompiledStateGraph object at 0x7ff8c01bac90>"
+      ]
+     },
+     "execution_count": 22,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "workflow"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "id": "f2dc60bc-81b9-4e5c-ad9c-29abb19b7770",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-01-16T10:41:17.514678Z",
+     "iopub.status.busy": "2026-01-16T10:41:17.514163Z",
+     "iopub.status.idle": "2026-01-16T10:41:48.971467Z",
+     "shell.execute_reply": "2026-01-16T10:41:48.970923Z",
+     "shell.execute_reply.started": "2026-01-16T10:41:17.514660Z"
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Short answer: Quantum mechanics can enrich generative AI both by providing new kinds of generative models that run on quantum hardware (or resemble quantum processes) and by offering quantum-inspired ideas that improve classical models. In practice, this is still an active, experimental area, with limited hardware-scale demonstrations, but several threads look promising.\n",
+      "\n",
+      "What quantum mechanics can bring to generative AI\n",
+      "\n",
+      "- Quantum generative models (on quantum hardware)\n",
+      "  - Quantum GANs (QGANs): adversarially trained generative models where at least one player (generator or discriminator) is implemented with a quantum system.\n",
+      "  - Quantum variational autoencoders (QVAE): using quantum circuits to encode or decode latent variables, potentially capturing complex correlations with fewer parameters.\n",
+      "  - Quantum Boltzmann machines and related energy-based models: use quantum dynamics or quantum sampling to model probability distributions more effectively or to explore hard energy landscapes.\n",
+      "  - Quantum-inspired Boltzmann/Born machines: use principles from quantum theory (e.g., amplitudes, interference) to define generative distributions, sometimes implemented classically with tensor networks or neural nets.\n",
+      "\n",
+      "- Quantum sampling and optimization for training\n",
+      "  - Sampling from complex distributions: some distributions are hard to sample classically; quantum hardware can in principle prepare samples from certain distributions via amplitude amplification or adiabatic/annealing dynamics.\n",
+      "  - Training EBMs and energy-based generative models: quantum samplers (or quantum annealers) can be used to draw samples for contrastive-divergence or other training routines, potentially improving mixing and exploration of the state space.\n",
+      "  - Quantum optimization (e.g., QAOA) and variational methods: can be integrated into the training loop to optimize model parameters more efficiently for certain combinatorial or discrete structures.\n",
+      "\n",
+      "- Quantum representations and expressivity (quantum-native representations)\n",
+      "  - Exponential representational power: a quantum system with n qubits can encode information in a 2^n-dimensional space, which can compactly represent highly entangled or correlated distributions.\n",
+      "  - Quantum feature maps and kernel methods: data can be encoded into quantum states (quantum feature maps), enabling powerful kernels and richer representations that are hard to emulate classically.\n",
+      "  - Tensor-network connections: many quantum states have efficient classical representations (e.g., matrix product states, PEPS). These “quantum-inspired” models can yield powerful, tractable generative models on classical hardware.\n",
+      "\n",
+      "- Quantum-inspired methods that improve classical generative models\n",
+      "  - Born machines and related approaches: generative models inspired by the Born rule (probabilities come from squared amplitudes) can be trained classically and may capture complex correlations with fewer parameters than some traditional nets.\n",
+      "  - Complex-valued neural nets and interference-inspired architectures: leveraging complex amplitudes and phase information can help model certain data modalities (e.g., wave-like or highly structured correlations) more naturally.\n",
+      "\n",
+      "Where this is most promising today\n",
+      "\n",
+      "- Physics and chemistry data: simulations and experimental data with strong quantum/physical structure can benefit from quantum generative approaches or quantum-inspired models that mirror that structure.\n",
+      "- Hard-combinatorial or highly correlated distributions: where classical models struggle to explore the space, quantum samplers or quantum-inspired representations can offer new avenues.\n",
+      "- Hybrid quantum-classical pipelines: near-term (NISQ) devices are best used in hybrid loops—a classical generator/trainer with a quantum sampler or encoder/decoder component.\n",
+      "\n",
+      "Important caveats and real-world status\n",
+      "\n",
+      "- Not guaranteed speedups: for many tasks there is no proven exponential or even polynomial speedup. Practical gains depend on the problem, hardware, and error rates.\n",
+      "- Hardware challenges: current quantum hardware is noisy, has limited qubits, and requires careful error mitigation; this makes large-scale, reliable generative modeling challenging right now.\n",
+      "- Training difficulties: quantum models can suffer from issues like barren plateaus in variational training; classical baselines remain very strong for many generative tasks.\n",
+      "- Mostly research-stage: as of now, most demonstrations are small-scale and proof-of-concept rather than production-grade improvements over state-of-the-art classical generative models.\n",
+      "\n",
+      "Getting started if you’re curious\n",
+      "\n",
+      "- Try quantum-inspired models first: explore Born machines or tensor-network-based generative models on classical hardware. They often offer interesting representations with relatively mature tooling.\n",
+      "- Use hybrid quantum-classical workflows: implement a simple QGAN or VQ-VAE in a framework that supports automatic differentiation and quantum simulators (e.g., PennyLane, Qiskit, or Cirq with classical backends) to get a hands-on feel for the training loop.\n",
+      "- Explore quantum sampling for EBMs: experiment with training an energy-based model where you replace or augment the sampler with a quantum sampler (real or simulated) and compare to conventional MCMC or contrastive-divergence approaches.\n",
+      "- Follow current research and benchmarks: look for papers and open-source projects on QGANs, QBMs, quantum-inspired Born machines, and quantum-accelerated generative modeling to stay updated on what’s feasible today.\n",
+      "\n",
+      "In summary, quantum mechanics offers a spectrum of opportunities for generative AI—from new quantum-powered models and samplers to quantum-inspired representations and training methods. The field is early and exploratory, but it holds potential for richer representations and different optimization/sampling dynamics that could pay off as hardware and algorithms mature.\n"
+     ]
+    }
+   ],
+   "source": [
+    "initial_state = { \"question\" : \"How Quantum Mechanics can help in Generative AI?\" }\n",
+    "\n",
+    "final_state = workflow.invoke(initial_state)\n",
+    "\n",
+    "print(final_state['answer'])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "16eb4694-69b6-4369-bee4-0160ff22af3d",
+   "metadata": {},
+   "source": [
+    "# PromptChaining Workflow"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b5074913-7c0d-4a74-a495-09315dac253b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from "
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.9"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
