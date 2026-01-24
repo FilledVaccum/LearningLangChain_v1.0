@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, BaseMessage
 from typing import TypedDict, Annotated
 from dotenv import load_dotenv
 import sqlite3
+from rich import print as rprint
 
 # Loading Environment Variable
 load_dotenv()
@@ -41,11 +42,11 @@ chatbot_workflow = chatbot_graph.compile(checkpointer = checkpointer)
 CONFIG = { 'configurable' : { 'thread_id' : 'thread_1' } }
 
 response = chatbot_workflow.invoke(
-    { 'messages' : [HumanMessage(content= "My name is Swap")]},
+    { 'messages' : [HumanMessage(content= "Create a song on my name.")]},
     config = CONFIG
 )
 
-print(response)
+rprint(response)
 
 # def retrieve_all_threads():
 #     all_threads = set()
