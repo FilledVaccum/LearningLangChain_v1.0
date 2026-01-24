@@ -39,18 +39,23 @@ chatbot_graph.add_edge('chat_node', END)
 # Compiling the graph
 chatbot_workflow = chatbot_graph.compile(checkpointer = checkpointer)
 
-CONFIG = { 'configurable' : { 'thread_id' : 'thread_1' } }
+all_threads = set()
+for checkpoint in checkpointer.list(None):
+    all_threads.add(checkpoint.config['configurable']['thread_id'])
 
-response = chatbot_workflow.invoke(
-    { 'messages' : [HumanMessage(content= "Create a song on my name.")]},
-    config = CONFIG
-)
+print(list(all_threads))
 
-rprint(response)
+# CONFIG = { 'configurable' : { 'thread_id' : 'thread_1' } }
+
+# response = chatbot_workflow.invoke(
+#     { 'messages' : [HumanMessage(content= "Create a song on my name.")]},
+#     config = CONFIG
+# )
+
+# rprint(response)
 
 # def retrieve_all_threads():
 #     all_threads = set()
 #     for checkpoint in checkpointer.list(None):
-#         all_threads.add(checkpoint.config['configurable']['thread_id'])
-
+#         all_threads.add(checkpoint.config['configurable']['thread']
 #     return list(all_threads)
