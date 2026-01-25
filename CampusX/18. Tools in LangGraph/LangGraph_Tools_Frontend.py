@@ -114,7 +114,8 @@ if user_input:
         if isinstance(message_chunk, AIMessage) and hasattr(message_chunk, 'tool_calls') and message_chunk.tool_calls:
             tool_used = True
             for tool_call in message_chunk.tool_calls:
-                status_container.write(f"🔧 Using: {tool_call['name']}")
+                if tool_call.get('name'):
+                    status_container.write(f"🔧 Using: {tool_call['name']}")
     
     status_container.update(label="Complete", state="complete")
     
