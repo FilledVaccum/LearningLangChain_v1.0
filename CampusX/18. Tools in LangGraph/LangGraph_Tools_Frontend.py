@@ -102,34 +102,30 @@ if user_input:
         }
 
     # Stream with tool status display
-    with st.chat_message("assistant"):
-        status_container = st.status("Processing...", expanded=True)
-        
-        def ai_only_stream():
-            for message_chunk, metadata in chatbot_workflow.stream(
-                { 'messages' : [HumanMessage(content = user_input)]}, 
-                config = CONFIG,
-                stream_mode = 'messages'
-            ):
-                # Show tool calls in status
-                if isinstance(message_chunk, AIMessage) and hasattr(message_chunk, 'tool_calls') and message_chunk.tool_calls:
-                    for tool_call in message_chunk.tool_calls:
-                        status_container.write(f"🔧 Calling tool: {tool_call['name']}")
-                
-                if isinstance(message_chunk, AIMessage) and message_chunk.content:
-                    status_container.update(label="Complete", state="complete")
-                    yield message_chunk.content
-        
-        ai_message = st.write_stream(ai_only_stream())
+    status_container = st.status("Processing...", expanded=False)
     
-    # If no content was streamed (tool call scenario), get the final response
-    if not ai_message:
-        state = chatbot_workflow.get_state(config = CONFIG)
-        final_message = state.values['messages'][-1]
-        status_container.update(label="Complete", state="complete")
-        with st.chat_message("assistant"):
-            st.text(final_message.content)
-        ai_message = final_message.content
+    tool_used = False
+    for message_chunk, metadata in chatbot_workflow.stream(
+        { 'messages' : [HumanMessage(content = user_input)]}, 
+        config = CONFIG,
+        stream_mode = 'messages'
+    ):
+        # Show tool calls in status
+        if isinstance(message_chunk, AIMessage) and hasattr(message_chunk, 'tool_calls') and message_chunk.tool_calls:
+            tool_used = True
+            for tool_call in message_chunk.tool_calls:
+                status_container.write(f"🔧 Using: {tool_call['name']}")
+    
+    status_container.update(label="Complete", state="complete")
+    
+    # Get final response
+    state = chatbot_workflow.get_state(config = CONFIG)
+    final_message = state.values['messages'][-1]
+    
+    with st.chat_message("assistant"):
+        st.text(final_message.content)
+    
+    ai_message = final_message.content
 
     ## 6. Save AI Response
     st.session_state['message_history'].append( { 'role' : 'assistant', 'content' : ai_message } )

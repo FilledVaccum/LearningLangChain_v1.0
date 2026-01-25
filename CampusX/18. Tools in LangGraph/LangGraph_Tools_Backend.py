@@ -99,8 +99,7 @@ chatbot_graph.add_node('tools', tool_node)
 
 chatbot_graph.add_edge(START, 'chat_node')
 chatbot_graph.add_conditional_edges('chat_node', tools_condition)
-
-chatbot_graph.add_edge('chat_node', END)
+chatbot_graph.add_edge('tools', 'chat_node')
 
 # Compiling the graph
 chatbot_workflow = chatbot_graph.compile(checkpointer = checkpointer)
